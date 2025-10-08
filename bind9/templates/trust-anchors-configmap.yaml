@@ -1,0 +1,11 @@
+{{- if and .Values.dns.trustAnchors.enabled .Values.dns.trustAnchors.data }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "bind.name" . }}-trust-anchors
+  labels:
+    app: {{ include "bind.name" . }}
+data:
+  trust-anchors.conf: |
+{{ .Values.dns.trustAnchors.data | indent 4 }}
+{{- end }}

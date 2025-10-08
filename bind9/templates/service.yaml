@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "bind.name" . }}
+  labels:
+    app: {{ include "bind.name" . }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app: {{ include "bind.name" . }}
+  ports:
+    - port: {{ .Values.service.ports.dnsUdp }}
+      protocol: UDP
+      targetPort: 53
+      name: dns-udp
+    - port: {{ .Values.service.ports.dnsTcp }}
+      protocol: TCP
+      targetPort: 53
+      name: dns-tcp
+    - port: {{ .Values.service.ports.dot }}
+      protocol: TCP
+      targetPort: 853
+      name: dns-tls
+    - port: {{ .Values.service.ports.doh }}
+      protocol: TCP
+      targetPort: 443
+      name: dns-https

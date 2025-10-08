@@ -1,0 +1,80 @@
+replicaCount: 1
+
+image:
+  repository: internetsystemsconsortium/bind9
+  tag: "9.20"
+  pullPolicy: IfNotPresent
+
+service:
+  type: LoadBalancer
+  annotations: {}        # Allow user-supplied Service annotations
+  ports:
+    dnsUdp: 53
+    dnsTcp: 53
+    dot: 853
+    doh: 443
+
+resources: {}
+
+dns:
+  allowRecursion: any
+  recursionEnabled: false
+  allowQuery: any
+  forwardOnly: true
+
+  forwarders:
+    - host: 1.1.1.1
+      name: cloudflare
+      remoteHostname: cloudflare-dns.com
+    - host: 1.0.0.1
+      name: cloudflare
+      remoteHostname: cloudflare-dns.com
+    - host: 8.8.8.8
+      name: google
+      remoteHostname: dns.google
+    - host: 8.8.4.4
+      name: google
+      remoteHostname: dns.google
+
+  zones:
+    # internal.:
+    #   - 192.168.10.2
+    #   - 192.168.10.3
+
+  doh:
+    enabled: false
+    certSecret: bind-cert-secret
+    useExistingSecret: false
+    certFile: tls.crt
+    keyFile: tls.key
+    reloadOnChange: false
+
+    # cert-manager integration
+    certificate:
+      enabled: false
+      commonName: myhostname.internal
+      dnsNames:
+        - myhostname.internal
+      issuerRef:
+        name: issuer-name
+        kind: ClusterIssuer
+
+  trustAnchors:
+    enabled: false
+    data: |
+      . IN DS 20326 8 2 (
+          49FD46E6C4B45C55D4AC
+          0E2D6F25F14374FE1355
+          1B9A395A366EFB9193BC
+          2C0D1C8F9D75A9805F59
+          3BEBE3B563BEB1C5D0C8
+          2A4B8E3C7D3A8AFD0BFF
+          5C7D6F4E3A2B1C0D9E8F
+          A1B2C3D4E5F60718293A
+          B4C5D6E7F8091A2B3C4D
+          E5F60718293A4B5C6D7E
+          F8091A2B3C4D5E6F7081
+          92A3B4C5D6E7F8091A2B
+          C3D4E5F60718293A4B5C
+          D6E7F8091A2B3C4D5E6F
+          708192A3B4C5D6E7F809 ) ; key id = 20326

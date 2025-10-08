@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "bind.name" . }}-config
+  labels:
+    app: {{ include "bind.name" . }}
+data:
+  named.conf: |
+    {{- if .Values.dns.doh.enabled }}
+    http local {
+        endpoints {
+            "/dns-query";
+        };
+    };
+    {{- end }}
+    options {
+        allow-query { {{ .Values.dns.allowQuery }}; };
+        {{- if .Values.dns.recursionEnabled }}
+        allow-recursion { {{ .Values.dns.allowRecursion }}; };
+        recursion yes;
+        {{- end }}
+        listen-on { any; };
+        listen-on-v6 { any; };
+
+        {{- if .Values.dns.doh.enabled }}
+        tls local-tls {
+            cert-file "/etc/bind/certs/{{ .Values.dns.doh.certFile }}";
+            key-file "/etc/bind/certs/{{ .Values.dns.doh.keyFile }}";
+        };
+
+        listen-on tls local-tls { any; };
+        listen-on-v6 tls local-tls { any; };
+        listen-on tls local-tls http local { any; };
+        listen-on-v6 tls local-tls http local { any; };
+        {{- end }}
+
+        directory "/var/cache/bind";
+        dnssec-validation auto;
+
+        {{- if .Values.dns.forwardOnly }}
+        forward only;
+        {{- else }}
+        forward first;
+        {{- end }}
+
+        forwarders {
+        {{- range .Values.dns.forwarders }}
+            {{ .host }} tls {{ .name }};
+        {{- end }}
+        };
+    };
+
+    {{- range $zone, $servers := .Values.dns.zones }}
+    zone "{{ $zone }}" IN {
+        type forward;
+        forward only;
+        forwarders {
+        {{- range $servers }}
+            {{ . }};
+        {{- end }}
+        };
+    };
+    {{- end }}
+    {{- $uniqueTLS := dict }}
+    {{- range .Values.dns.forwarders }}
+      {{- $_ := set $uniqueTLS .name .remoteHostname }}
+    {{- end }}
+
+    {{- range $name, $hostname := $uniqueTLS }}
+    tls {{ $name }} {
+        remote-hostname "{{ $hostname }}";
+        ca-file "/etc/ssl/certs/ca-certificates.crt";
+    };
+    {{- end }}
+    {{- if .Values.dns.trustAnchors.enabled }}
+    include "/etc/bind/trust-anchors.conf";
+    {{- end }}
